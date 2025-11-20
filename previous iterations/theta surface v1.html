@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Black‑Scholes Theta vs DTE Explorer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel-bg: #161b2b;
+      --accent: #4ea1ff;
+      --accent-soft: rgba(78, 161, 255, 0.15);
+      --accent-2: #ff9f43;
+      --text: #f5f7ff;
+      --text-dim: #b4bddb;
+      --border: #262b3f;
+      --grid: #272b3c;
+      --bull: #2ecc71;
+      --bear: #e74c3c;
+      --neutral: #95a5a6;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        sans-serif;
+      background: radial-gradient(circle at top, #182340 0, #060914 55%);
+      color: var(--text);
+    }
+
+    .app {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 1rem 1.25rem 0.5rem;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 1.35rem;
+      letter-spacing: 0.03em;
+    }
+
+    .subtitle {
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      margin-top: 0.25rem;
+    }
+
+    .layout {
+      display: flex;
+      flex: 1;
+      padding: 0.5rem 1rem 1rem;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .panel {
+      background: var(--panel-bg);
+      border-radius: 0.75rem;
+      border: 1px solid var(--border);
+      padding: 0.75rem 0.85rem;
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+    }
+
+    .chart-panel {
+      flex: 2 1 280px;
+      display: flex;
+      flex-direction: column;
+      min-height: 320px;
+    }
+
+    .controls-panel {
+      flex: 1 1 260px;
+      max-width: 420px;
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+
+    .panel-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-bottom: 0.4rem;
+      display: flex;
+      align-items: baseline;
+      gap: 0.35rem;
+    }
+
+    .badge {
+      font-size: 0.65rem;
+      padding: 0.05rem 0.35rem;
+      border-radius: 999px;
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .chart-wrapper {
+      position: relative;
+      flex: 1;
+      margin-top: 0.35rem;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .hint {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      margin-top: 0.4rem;
+      display: flex;
+      justify-content: space-between;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .legend {
+      font-size: 0.7rem;
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      white-space: nowrap;
+    }
+
+    .legend-color {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+    }
+
+    .legend-call {
+      background: var(--bull);
+    }
+    .legend-put {
+      background: var(--bear);
+    }
+    .legend-zero {
+      border-radius: 0;
+      width: 12px;
+      height: 1px;
+      background: var(--neutral);
+    }
+
+    /* Controls */
+    .control-group {
+      border-radius: 0.6rem;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      background: radial-gradient(circle at top left, #222846 0, #151829 60%);
+      padding: 0.55rem 0.6rem 0.65rem;
+    }
+
+    .control-group-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 0.35rem;
+      gap: 0.5rem;
+    }
+
+    .control-group-title {
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .control-group-sub {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      margin: 0.22rem 0;
+      flex-wrap: wrap;
+    }
+
+    .row label {
+      font-size: 0.75rem;
+      flex: 0 0 82px;
+      color: var(--text-dim);
+    }
+
+    .row .slider-wrap {
+      flex: 1 1 120px;
+      display: flex;
+      flex-direction: column;
+      gap: 0.05rem;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      -webkit-appearance: none;
+      background: transparent;
+    }
+
+    input[type="range"]::-webkit-slider-runnable-track {
+      height: 4px;
+      border-radius: 2px;
+      background: linear-gradient(
+        90deg,
+        rgba(78, 161, 255, 0.8),
+        rgba(255, 159, 67, 0.75)
+      );
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #fff;
+      margin-top: -5px;
+      box-shadow: 0 0 0 3px rgba(78, 161, 255, 0.4);
+      cursor: pointer;
+    }
+
+    input[type="range"]::-moz-range-track {
+      height: 4px;
+      border-radius: 2px;
+      background: linear-gradient(
+        90deg,
+        rgba(78, 161, 255, 0.8),
+        rgba(255, 159, 67, 0.75)
+      );
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(78, 161, 255, 0.4);
+      cursor: pointer;
+    }
+
+    .value-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.72rem;
+      color: var(--text-dim);
+    }
+
+    .value-row span.value {
+      color: var(--accent-2);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .small-note {
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      margin-top: 0.2rem;
+    }
+
+    .stat-line {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.72rem;
+      margin: 0.1rem 0;
+      color: var(--text-dim);
+    }
+
+    .stat-value {
+      font-variant-numeric: tabular-nums;
+      color: var(--text);
+    }
+
+    .stat-bear {
+      color: var(--bear);
+    }
+    .stat-bull {
+      color: var(--bull);
+    }
+
+    .inline-inputs {
+      display: flex;
+      gap: 0.35rem;
+      flex-wrap: wrap;
+    }
+
+    .inline-input {
+      display: flex;
+      flex-direction: column;
+      gap: 0.08rem;
+      flex: 1 1 80px;
+    }
+
+    .inline-input label {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+    }
+
+    .inline-input input[type="number"] {
+      width: 100%;
+      padding: 0.18rem 0.3rem;
+      border-radius: 0.35rem;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(6, 10, 25, 0.9);
+      color: var(--text);
+      font-size: 0.72rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .inline-input input[type="number"]:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px rgba(78, 161, 255, 0.45);
+    }
+
+    @media (max-width: 768px) {
+      header {
+        padding: 0.8rem 0.75rem 0.3rem;
+      }
+      .layout {
+        padding: 0.4rem 0.5rem 0.8rem;
+      }
+      .controls-panel {
+        max-width: 100%;
+        order: -1;
+      }
+      h1 {
+        font-size: 1.1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>Black‑Scholes Theta Surface</h1>
+      <div class="subtitle">
+        θ per day vs Days‑to‑Expiration. Call &amp; put curves update in real time.
+      </div>
+    </header>
+
+    <main class="layout">
+      <!-- Controls -->
+      <section class="panel controls-panel">
+        <div class="control-group">
+          <div class="control-group-head">
+            <div>
+              <div class="control-group-title">Option Setup</div>
+              <div class="control-group-sub">
+                Underlying, strike, and manual ranges.
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <label for="S">Underlying S</label>
+            <div class="slider-wrap">
+              <input
+                id="S"
+                type="range"
+                min="10"
+                max="500"
+                step="1"
+                value="100"
+              />
+              <div class="value-row">
+                <span id="S-min-label">$10</span>
+                <span class="value" id="S-value">$100.00</span>
+                <span id="S-max-label">$500</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="inline-inputs" style="margin-top:0.25rem;">
+            <div class="inline-input">
+              <label for="S-min">S min</label>
+              <input id="S-min" type="number" value="10" step="1" />
+            </div>
+            <div class="inline-input">
+              <label for="S-max">S max</label>
+              <input id="S-max" type="number" value="500" step="1" />
+            </div>
+          </div>
+
+          <div class="row" style="margin-top:0.45rem;">
+            <label for="K">Strike K</label>
+            <div class="slider-wrap">
+              <input
+                id="K"
+                type="range"
+                min="10"
+                max="500"
+                step="1"
+                value="100"
+              />
+              <div class="value-row">
+                <span id="K-min-label">$10</span>
+                <span class="value" id="K-value">$100.00</span>
+                <span id="K-max-label">$500</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="inline-inputs" style="margin-top:0.25rem;">
+            <div class="inline-input">
+              <label for="K-min">K min</label>
+              <input id="K-min" type="number" value="10" step="1" />
+            </div>
+            <div class="inline-input">
+              <label for="K-max">K max</label>
+              <input id="K-max" type="number" value="500" step="1" />
+            </div>
+          </div>
+
+          <div class="small-note" style="margin-top:0.4rem;">
+            Use sliders for current S and K. Manually edit min/max ranges to
+            re‑scale the sliders.
+          </div>
+        </div>
+
+        <div class="control-group">
+          <div class="control-group-head">
+            <div>
+              <div class="control-group-title">Market Inputs</div>
+              <div class="control-group-sub">
+                Volatility, rate &amp; dividends.
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <label for="sigma">Vol σ</label>
+            <div class="slider-wrap">
+              <input
+                id="sigma"
+                type="range"
+                min="0.05"
+                max="1.0"
+                step="0.005"
+                value="0.25"
+              />
+              <div class="value-row">
+                <span>5%</span>
+                <span class="value" id="sigma-value">25.0%</span>
+                <span>100%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <label for="r">Rate r</label>
+            <div class="slider-wrap">
+              <input
+                id="r"
+                type="range"
+                min="-0.05"
+                max="0.15"
+                step="0.005"
+                value="0.02"
+              />
+              <div class="value-row">
+                <span>-5%</span>
+                <span class="value" id="r-value">2.0%</span>
+                <span>15%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <label for="q">Div q</label>
+            <div class="slider-wrap">
+              <input
+                id="q"
+                type="range"
+                min="0"
+                max="0.15"
+                step="0.0025"
+                value="0"
+              />
+              <div class="value-row">
+                <span>0%</span>
+                <span class="value" id="q-value">0.0%</span>
+                <span>15%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <label for="maxDTE">Max DTE</label>
+            <div class="slider-wrap">
+              <input
+                id="maxDTE"
+                type="range"
+                min="7"
+                max="730"
+                step="1"
+                value="365"
+              />
+              <div class="value-row">
+                <span>7</span>
+                <span class="value" id="maxDTE-value">365 days</span>
+                <span>730</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="small-note">
+            X‑axis shows DTE from <strong>max on the left</strong> to
+            <strong>0 on the right</strong>.
+          </div>
+        </div>
+
+        <div class="control-group">
+          <div class="control-group-head">
+            <div>
+              <div class="control-group-title">Theta Stats (Today)</div>
+              <div class="control-group-sub">
+                At selected horizon for both call and put.
+              </div>
+            </div>
+          </div>
+          <div class="row">
+            <label for="probeDTE">Probe DTE</label>
+            <div class="slider-wrap">
+              <input
+                id="probeDTE"
+                type="range"
+                min="1"
+                max="730"
+                step="1"
+                value="30"
+              />
+              <div class="value-row">
+                <span>1</span>
+                <span class="value" id="probeDTE-value">30 days</span>
+                <span>730</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="stat-line">
+            <span>Call θ per day @ probe DTE</span>
+            <span class="stat-value" id="theta-probe-call"></span>
+          </div>
+          <div class="stat-line">
+            <span>Put θ per day @ probe DTE</span>
+            <span class="stat-value" id="theta-probe-put"></span>
+          </div>
+          <div class="stat-line">
+            <span>Call θ per day @ ATM (K = S)</span>
+            <span class="stat-value" id="theta-atm-call"></span>
+          </div>
+          <div class="stat-line">
+            <span>Put θ per day @ ATM (K = S)</span>
+            <span class="stat-value" id="theta-atm-put"></span>
+          </div>
+
+          <div class="small-note">
+            Long options have typically negative θ; short are the opposite
+            sign (not shown separately here).
+          </div>
+        </div>
+      </section>
+
+      <!-- Chart -->
+      <section class="panel chart-panel">
+        <div class="panel-title">
+          Theta per Day vs Days‑to‑Expiration
+          <span class="badge">Real‑Time</span>
+        </div>
+        <div class="chart-wrapper">
+          <canvas id="thetaChart"></canvas>
+        </div>
+        <div class="hint">
+          <div>
+            θ is per calendar day, using Black‑Scholes with continuous
+            compounding. DTE goes from far expiry (left) to near expiry (right).
+          </div>
+          <div class="legend">
+            <span class="legend-item">
+              <span class="legend-color legend-call"></span> Call θ
+            </span>
+            <span class="legend-item">
+              <span class="legend-color legend-put"></span> Put θ
+            </span>
+            <span class="legend-item">
+              <span class="legend-zero"></span> θ = 0
+            </span>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    // ---------- Math helpers ----------
+    function erf(x) {
+      const sign = x < 0 ? -1 : 1;
+      x = Math.abs(x);
+
+      const a1 = 0.254829592;
+      const a2 = -0.284496736;
+      const a3 = 1.421413741;
+      const a4 = -1.453152027;
+      const a5 = 1.061405429;
+      const p = 0.3275911;
+
+      const t = 1.0 / (1.0 + p * x);
+      const y =
+        1.0 -
+        (((((a5 * t + a4) * t + a3) * t + a2) * t + a1) *
+          t *
+          Math.exp(-x * x));
+      return sign * y;
+    }
+
+    function cdfNorm(x) {
+      return 0.5 * (1 + erf(x / Math.SQRT2));
+    }
+
+    function pdfNorm(x) {
+      return (1 / Math.sqrt(2 * Math.PI)) * Math.exp(-0.5 * x * x);
+    }
+
+    function blackScholesThetaPerDay(S, K, r, q, sigma, T, isCall) {
+      // T in years
+      if (T <= 0 || sigma <= 0) return 0;
+
+      const sqrtT = Math.sqrt(T);
+      const lnSK = Math.log(S / K);
+      const d1 = (lnSK + (r - q + 0.5 * sigma * sigma) * T) / (sigma * sqrtT);
+      const d2 = d1 - sigma * sqrtT;
+
+      const Nd1 = cdfNorm(isCall ? d1 : -d1);
+      const Nd2 = cdfNorm(isCall ? d2 : -d2);
+      const pdfd1 = pdfNorm(d1);
+
+      let thetaAnnual;
+      if (isCall) {
+        thetaAnnual =
+          -(
+            (S * Math.exp(-q * T) * pdfd1 * sigma) /
+            (2 * sqrtT)
+          ) -
+          r * K * Math.exp(-r * T) * Nd2 +
+          q * S * Math.exp(-q * T) * Nd1;
+      } else {
+        thetaAnnual =
+          -(
+            (S * Math.exp(-q * T) * pdfd1 * sigma) /
+            (2 * sqrtT)
+          ) +
+          r * K * Math.exp(-r * T) * (1 - Nd2) -
+          q * S * Math.exp(-q * T) * (1 - Nd1);
+      }
+
+      return thetaAnnual / 365.0;
+    }
+
+    // ---------- Canvas ----------
+    const canvas = document.getElementById("thetaChart");
+    const ctx = canvas.getContext("2d");
+
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    window.addEventListener("resize", () => {
+      resizeCanvas();
+      draw();
+    });
+    resizeCanvas();
+
+    // ---------- State ----------
+    const state = {
+      S: 100,
+      K: 100,
+      sigma: 0.25,
+      r: 0.02,
+      q: 0.0,
+      maxDTE: 365,
+      probeDTE: 30,
+      Smin: 10,
+      Smax: 500,
+      Kmin: 10,
+      Kmax: 500,
+    };
+
+    // ---------- DOM ----------
+    const SInput = document.getElementById("S");
+    const KInput = document.getElementById("K");
+    const sigmaInput = document.getElementById("sigma");
+    const rInput = document.getElementById("r");
+    const qInput = document.getElementById("q");
+    const maxDTEInput = document.getElementById("maxDTE");
+    const probeDTEInput = document.getElementById("probeDTE");
+
+    const SValue = document.getElementById("S-value");
+    const KValue = document.getElementById("K-value");
+    const sigmaValue = document.getElementById("sigma-value");
+    const rValue = document.getElementById("r-value");
+    const qValue = document.getElementById("q-value");
+    const maxDTEValue = document.getElementById("maxDTE-value");
+    const probeDTEValue = document.getElementById("probeDTE-value");
+
+    const SMinInput = document.getElementById("S-min");
+    const SMaxInput = document.getElementById("S-max");
+    const KMinInput = document.getElementById("K-min");
+    const KMaxInput = document.getElementById("K-max");
+
+    const SMinLabel = document.getElementById("S-min-label");
+    const SMaxLabel = document.getElementById("S-max-label");
+    const KMinLabel = document.getElementById("K-min-label");
+    const KMaxLabel = document.getElementById("K-max-label");
+
+    const thetaProbeCallNode = document.getElementById("theta-probe-call");
+    const thetaProbePutNode = document.getElementById("theta-probe-put");
+    const thetaAtmCallNode = document.getElementById("theta-atm-call");
+    const thetaAtmPutNode = document.getElementById("theta-atm-put");
+
+    // ---------- Helpers ----------
+    function formatTheta(x) {
+      if (!isFinite(x)) return "—";
+      const sign = x > 0 ? "+" : "";
+      const abs = Math.abs(x);
+      if (abs >= 1) {
+        return `${sign}${abs.toFixed(2)}`;
+      } else if (abs >= 0.01) {
+        return `${sign}${abs.toFixed(3)}`;
+      } else {
+        return `${sign}${abs.toExponential(2)}`;
+      }
+    }
+
+    function updateLabels() {
+      SValue.textContent = `$${Number(state.S).toFixed(2)}`;
+      KValue.textContent = `$${Number(state.K).toFixed(2)}`;
+      sigmaValue.textContent = `${(state.sigma * 100).toFixed(1)}%`;
+      rValue.textContent = `${(state.r * 100).toFixed(1)}%`;
+      qValue.textContent = `${(state.q * 100).toFixed(1)}%`;
+      maxDTEValue.textContent = `${state.maxDTE} days`;
+      probeDTEValue.textContent = `${state.probeDTE} days`;
+
+      SMinLabel.textContent = `$${Number(state.Smin).toFixed(0)}`;
+      SMaxLabel.textContent = `$${Number(state.Smax).toFixed(0)}`;
+      KMinLabel.textContent = `$${Number(state.Kmin).toFixed(0)}`;
+      KMaxLabel.textContent = `$${Number(state.Kmax).toFixed(0)}`;
+    }
+
+    function updateStats() {
+      const Tprobe = state.probeDTE / 365.0;
+
+      const thetaProbeCall = blackScholesThetaPerDay(
+        state.S,
+        state.K,
+        state.r,
+        state.q,
+        state.sigma,
+        Tprobe,
+        true
+      );
+      const thetaProbePut = blackScholesThetaPerDay(
+        state.S,
+        state.K,
+        state.r,
+        state.q,
+        state.sigma,
+        Tprobe,
+        false
+      );
+      const thetaAtmCall = blackScholesThetaPerDay(
+        state.S,
+        state.S,
+        state.r,
+        state.q,
+        state.sigma,
+        Tprobe,
+        true
+      );
+      const thetaAtmPut = blackScholesThetaPerDay(
+        state.S,
+        state.S,
+        state.r,
+        state.q,
+        state.sigma,
+        Tprobe,
+        false
+      );
+
+      thetaProbeCallNode.textContent =
+        formatTheta(thetaProbeCall) + " / day";
+      thetaProbePutNode.textContent =
+        formatTheta(thetaProbePut) + " / day";
+      thetaAtmCallNode.textContent =
+        formatTheta(thetaAtmCall) + " / day";
+      thetaAtmPutNode.textContent =
+        formatTheta(thetaAtmPut) + " / day";
+
+      thetaProbeCallNode.className =
+        "stat-value " + (thetaProbeCall < 0 ? "stat-bear" : "stat-bull");
+      thetaProbePutNode.className =
+        "stat-value " + (thetaProbePut < 0 ? "stat-bear" : "stat-bull");
+      thetaAtmCallNode.className =
+        "stat-value " + (thetaAtmCall < 0 ? "stat-bear" : "stat-bull");
+      thetaAtmPutNode.className =
+        "stat-value " + (thetaAtmPut < 0 ? "stat-bear" : "stat-bull");
+    }
+
+    // ---------- Curve computation ----------
+    function computeCurves() {
+      const call = [];
+      const put = [];
+      const steps = 200;
+      const maxDTE = Math.max(1, state.maxDTE);
+
+      for (let i = 0; i <= steps; i++) {
+        // x-axis should be maxDTE at left and 0 at right
+        const x = (i / steps) * maxDTE; // 0 → maxDTE
+        const dte = maxDTE - x; // maxDTE → 0
+        const T = Math.max(dte, 0.0001) / 365.0;
+
+        const thetaCall = blackScholesThetaPerDay(
+          state.S,
+          state.K,
+          state.r,
+          state.q,
+          state.sigma,
+          T,
+          true
+        );
+        const thetaPut = blackScholesThetaPerDay(
+          state.S,
+          state.K,
+          state.r,
+          state.q,
+          state.sigma,
+          T,
+          false
+        );
+
+        call.push({ dte, theta: thetaCall });
+        put.push({ dte, theta: thetaPut });
+      }
+
+      return { call, put };
+    }
+
+    // ---------- Drawing ----------
+    function draw() {
+      const rect = canvas.getBoundingClientRect();
+      const w = rect.width;
+      const h = rect.height;
+
+      ctx.clearRect(0, 0, w, h);
+
+      const padLeft = 52;
+      const padRight = 12;
+      const padTop = 16;
+      const padBottom = 40;
+
+      const plotW = w - padLeft - padRight;
+      const plotH = h - padTop - padBottom;
+      if (plotW <= 0 || plotH <= 0) return;
+
+      const data = computeCurves();
+
+      // X range: DTE from 0 to maxDTE, but plotted max→0
+      const minX = 0;
+      const maxX = state.maxDTE;
+
+      // Y range from both curves
+      let minY = 0;
+      let maxY = 0;
+      [...data.call, ...data.put].forEach((p) => {
+        if (p.theta < minY) minY = p.theta;
+        if (p.theta > maxY) maxY = p.theta;
+      });
+
+      if (minY === maxY) {
+        const eps = 0.1;
+        minY -= eps;
+        maxY += eps;
+      }
+
+      const yPad = (maxY - minY) * 0.1 || 0.01;
+      minY -= yPad;
+      maxY += yPad;
+
+      const xToPx = (dte) =>
+        // dte: maxDTE (left) -> 0 (right)
+        padLeft + ((maxX - dte) / (maxX - minX || 1)) * plotW;
+      const yToPx = (y) =>
+        padTop + (1 - (y - minY) / (maxY - minY || 1)) * plotH;
+
+      // Background
+      const grad = ctx.createLinearGradient(0, padTop, 0, padTop + plotH);
+      grad.addColorStop(0, "rgba(18, 24, 46, 0.95)");
+      grad.addColorStop(1, "rgba(8, 12, 30, 0.95)");
+      ctx.fillStyle = grad;
+      ctx.fillRect(padLeft, padTop, plotW, plotH);
+
+      // Grid & labels
+      ctx.save();
+      ctx.strokeStyle = "rgba(255,255,255,0.04)";
+      ctx.lineWidth = 1;
+
+      ctx.font = "10px system-ui, sans-serif";
+      ctx.fillStyle = "#b4bddb";
+
+      // Vertical grid (DTE ticks)
+      const xTicks = 6;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+
+      for (let i = 0; i <= xTicks; i++) {
+        const dte = (i / xTicks) * maxX; // 0 → max
+        const px = xToPx(dte);
+        ctx.beginPath();
+        ctx.moveTo(px, padTop);
+        ctx.lineTo(px, padTop + plotH);
+        ctx.stroke();
+
+        const label =
+          i === 0
+            ? "0"
+            : i === xTicks
+            ? String(maxX)
+            : Math.round(dte).toString();
+        ctx.fillText(label, px, padTop + plotH + 4);
+      }
+
+      // Horizontal grid (theta)
+      const yTicks = 5;
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+
+      for (let i = 0; i <= yTicks; i++) {
+        const t = i / yTicks;
+        const yVal = minY + t * (maxY - minY);
+        const py = yToPx(yVal);
+
+        ctx.beginPath();
+        ctx.moveTo(padLeft, py);
+        ctx.lineTo(padLeft + plotW, py);
+        ctx.stroke();
+
+        const label = yVal.toFixed(3);
+        ctx.fillText(label, padLeft - 6, py);
+      }
+
+      // Zero theta line
+      if (minY < 0 && maxY > 0) {
+        const py0 = yToPx(0);
+        ctx.strokeStyle = "rgba(220, 220, 230, 0.55)";
+        ctx.lineWidth = 1.1;
+        ctx.setLineDash([4, 3]);
+        ctx.beginPath();
+        ctx.moveTo(padLeft, py0);
+        ctx.lineTo(padLeft + plotW, py0);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+      ctx.restore();
+
+      // Axis labels
+      ctx.save();
+      ctx.font = "11px system-ui, sans-serif";
+      ctx.fillStyle = "#e3e6ff";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "bottom";
+      ctx.fillText(
+        "Days to Expiration (DTE) — max ⟶ 0",
+        padLeft + plotW / 2,
+        h - 4
+      );
+
+      ctx.save();
+      ctx.translate(10, padTop + plotH / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.fillText("Theta per Day", 0, 0);
+      ctx.restore();
+      ctx.restore();
+
+      // Draw call curve
+      ctx.save();
+      ctx.strokeStyle = "rgba(46, 204, 113, 0.95)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      data.call.forEach((p, idx) => {
+        const x = xToPx(p.dte);
+        const y = yToPx(p.theta);
+        if (idx === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+      ctx.restore();
+
+      // Draw put curve
+      ctx.save();
+      ctx.strokeStyle = "rgba(231, 76, 60, 0.95)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      data.put.forEach((p, idx) => {
+        const x = xToPx(p.dte);
+        const y = yToPx(p.theta);
+        if (idx === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+      ctx.restore();
+
+      // Highlight probe DTE
+      const probeX = xToPx(state.probeDTE);
+      ctx.save();
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(probeX, padTop);
+      ctx.lineTo(probeX, padTop + plotH);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+
+    // ---------- Events ----------
+    function attachSlider(input, key) {
+      const handler = () => {
+        let val = parseFloat(input.value);
+        if (!isFinite(val)) return;
+        if (key === "maxDTE" || key === "probeDTE") {
+          val = Math.max(1, Math.min(730, val));
+        }
+        state[key] = val;
+        updateLabels();
+        updateStats();
+        draw();
+      };
+      input.addEventListener("input", handler);
+      input.addEventListener("change", handler);
+    }
+
+    attachSlider(SInput, "S");
+    attachSlider(KInput, "K");
+    attachSlider(sigmaInput, "sigma");
+    attachSlider(rInput, "r");
+    attachSlider(qInput, "q");
+    attachSlider(maxDTEInput, "maxDTE");
+    attachSlider(probeDTEInput, "probeDTE");
+
+    function clamp(val, min, max) {
+      return Math.min(max, Math.max(min, val));
+    }
+
+    function updateSliderRangeFromInputs() {
+      // Underlying S
+      let smin = parseFloat(SMinInput.value);
+      let smax = parseFloat(SMaxInput.value);
+      if (!isFinite(smin)) smin = state.Smin;
+      if (!isFinite(smax)) smax = state.Smax;
+      if (smax <= smin) smax = smin + 1;
+
+      state.Smin = smin;
+      state.Smax = smax;
+
+      SInput.min = smin;
+      SInput.max = smax;
+      state.S = clamp(state.S, smin, smax);
+      SInput.value = state.S;
+
+      // Strike K
+      let kmin = parseFloat(KMinInput.value);
+      let kmax = parseFloat(KMaxInput.value);
+      if (!isFinite(kmin)) kmin = state.Kmin;
+      if (!isFinite(kmax)) kmax = state.Kmax;
+      if (kmax <= kmin) kmax = kmin + 1;
+
+      state.Kmin = kmin;
+      state.Kmax = kmax;
+
+      KInput.min = kmin;
+      KInput.max = kmax;
+      state.K = clamp(state.K, kmin, kmax);
+      KInput.value = state.K;
+
+      updateLabels();
+      updateStats();
+      draw();
+    }
+
+    [SMinInput, SMaxInput, KMinInput, KMaxInput].forEach((el) => {
+      el.addEventListener("change", updateSliderRangeFromInputs);
+      el.addEventListener("blur", updateSliderRangeFromInputs);
+    });
+
+    // ---------- Initial setup ----------
+    function init() {
+      // Ensure slider ranges align with state
+      SInput.min = state.Smin;
+      SInput.max = state.Smax;
+      KInput.min = state.Kmin;
+      KInput.max = state.Kmax;
+
+      SInput.value = state.S;
+      KInput.value = state.K;
+
+      SMinInput.value = state.Smin;
+      SMaxInput.value = state.Smax;
+      KMinInput.value = state.Kmin;
+      KMaxInput.value = state.Kmax;
+
+      updateLabels();
+      updateStats();
+      draw();
+    }
+
+    init();
+  </script>
+</body>
+</html>

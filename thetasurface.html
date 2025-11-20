@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Theta & Delta vs DTE – Strike from |Delta| at Reference DTE (BSM)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-fork-ribbon-css/0.2.3/gh-fork-ribbon.min.css" />
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel-bg: #161b2b;
+      --accent: #4ea1ff;
+      --accent-2: #ff9f43;
+      --text: #f5f7ff;
+      --text-dim: #b4bddb;
+      --border: #262b3f;
+      --bull: #2ecc71;
+      --bear: #e74c3c;
+      --neutral: #95a5a6;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        sans-serif;
+      background: radial-gradient(circle at top, #182340 0, #060914 55%);
+      color: var(--text);
+    }
+
+    .app { min-height: 100vh; display: flex; flex-direction: column; }
+    header { padding: 1rem 1.25rem 0.5rem; }
+    h1 { margin: 0; font-size: 1.35rem; letter-spacing: 0.03em; }
+    .subtitle { font-size: 0.85rem; color: var(--text-dim); margin-top: 0.25rem; }
+
+    .layout {
+      display: flex; flex: 1;
+      padding: 0.5rem 1rem 1rem;
+      gap: 0.75rem; flex-wrap: wrap;
+    }
+
+    .panel {
+      background: var(--panel-bg);
+      border-radius: 0.75rem;
+      border: 1px solid var(--border);
+      padding: 0.75rem 0.85rem;
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+    }
+
+    .chart-panel { flex: 2 1 280px; display: flex; flex-direction: column; min-height: 320px; }
+    .controls-panel { flex: 1 1 260px; max-width: 420px; display: flex; flex-direction: column; gap: 0.45rem; }
+
+    .panel-title {
+      font-size: 0.9rem; font-weight: 600; margin-bottom: 0.4rem;
+      display: flex; align-items: center; justify-content: space-between; gap: 0.35rem;
+    }
+
+    .view-toggle {
+      display: inline-flex;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      background: rgba(6,10,25,0.9);
+      font-size: 0.7rem;
+    }
+    .view-toggle button {
+      border: none;
+      padding: 0.15rem 0.6rem;
+      background: transparent;
+      color: var(--text-dim);
+      cursor: pointer;
+      font: inherit;
+    }
+    .view-toggle button.active {
+      background: linear-gradient(135deg, rgba(78,161,255,0.8), rgba(255,159,67,0.8));
+      color: #050711;
+    }
+
+    .chart-wrapper { position: relative; flex: 1; margin-top: 0.35rem; }
+    canvas { width: 100%; height: 100%; display: block; }
+
+    .hint {
+      font-size: 0.75rem; color: var(--text-dim);
+      margin-top: 0.4rem; display: flex; justify-content: space-between;
+      gap: 0.5rem; flex-wrap: wrap;
+    }
+
+    .legend {
+      font-size: 0.7rem; display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;
+    }
+    .legend-item { display: inline-flex; align-items: center; gap: 0.25rem; white-space: nowrap; }
+    .legend-color { width: 10px; height: 10px; border-radius: 999px; }
+    .legend-call { background: var(--bull); }
+    .legend-put { background: var(--bear); }
+    .legend-zero { border-radius: 0; width: 12px; height: 1px; background: var(--neutral); }
+
+    .control-group {
+      border-radius: 0.6rem;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      background: radial-gradient(circle at top left, #222846 0, #151829 60%);
+      padding: 0.55rem 0.6rem 0.65rem;
+    }
+    .control-group-head {
+      display: flex; justify-content: space-between; align-items: baseline;
+      margin-bottom: 0.35rem; gap: 0.5rem;
+    }
+    .control-group-title { font-size: 0.8rem; font-weight: 600; }
+    .control-group-sub { font-size: 0.7rem; color: var(--text-dim); }
+
+    .row {
+      display: flex; align-items: center; gap: 0.4rem;
+      margin: 0.22rem 0; flex-wrap: wrap;
+    }
+    .row label { font-size: 0.75rem; flex: 0 0 120px; color: var(--text-dim); }
+    .row .slider-wrap { flex: 1 1 120px; display: flex; flex-direction: column; gap: 0.05rem; }
+
+    input[type="range"] {
+      width: 100%; -webkit-appearance: none; background: transparent;
+    }
+    input[type="range"]::-webkit-slider-runnable-track {
+      height: 4px; border-radius: 2px;
+      background: linear-gradient(90deg, rgba(78,161,255,.8), rgba(255,159,67,.75));
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
+      background: #fff; margin-top: -5px; box-shadow: 0 0 0 3px rgba(78,161,255,.4);
+      cursor: pointer;
+    }
+    input[type="range"]::-moz-range-track {
+      height: 4px; border-radius: 2px;
+      background: linear-gradient(90deg, rgba(78,161,255,.8), rgba(255,159,67,.75));
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 14px; height: 14px; border-radius: 50%;
+      background: #fff; box-shadow: 0 0 0 3px rgba(78,161,255,.4); cursor: pointer;
+    }
+
+    .value-row {
+      display: flex; justify-content: space-between;
+      font-size: 0.72rem; color: var(--text-dim);
+    }
+    .value-row span.value { color: var(--accent-2); font-variant-numeric: tabular-nums; }
+
+    .small-note { font-size: 0.65rem; color: var(--text-dim); margin-top: 0.25rem; }
+
+    .stat-line {
+      display: flex; justify-content: space-between;
+      font-size: 0.72rem; margin: 0.1rem 0; color: var(--text-dim);
+    }
+    .stat-value { font-variant-numeric: tabular-nums; color: var(--text); }
+    .stat-bear { color: var(--bear); }
+    .stat-bull { color: var(--bull); }
+
+    .inline-inputs { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+    .inline-input { display: flex; flex-direction: column; gap: 0.08rem; flex: 1 1 90px; }
+    .inline-input label { font-size: 0.7rem; color: var(--text-dim); }
+    .inline-input input[type="number"] {
+      width: 100%; padding: 0.18rem 0.3rem; border-radius: 0.35rem;
+      border: 1px solid rgba(255,255,255,0.12); background: rgba(6,10,25,0.9);
+      color: var(--text); font-size: 0.72rem; font-variant-numeric: tabular-nums;
+    }
+    .inline-input input[type="number"]:focus {
+      outline: none; border-color: var(--accent);
+      box-shadow: 0 0 0 1px rgba(78,161,255,0.45);
+    }
+
+    .minmax-row {
+      display: flex;
+      gap: 0.2rem;
+      margin-top: 0.15rem;
+    }
+    .minmax-row .inline-input {
+      flex: 1 1 0;
+    }
+
+    @media (max-width: 768px) {
+      header { padding: 0.8rem 0.75rem 0.3rem; }
+      .layout { padding: 0.4rem 0.5rem 0.8rem; }
+      .controls-panel { max-width: 100%; order: -1; }
+      h1 { font-size: 1.1rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>Black‑Scholes Theta &amp; Delta vs DTE</h1>
+      <div class="subtitle">
+        |Δ| and a <strong>reference DTE</strong> define the strike; that strike is then held fixed as time passes.
+      </div>
+    </header>
+
+    <main class="layout">
+      <!-- Controls -->
+      <section class="panel controls-panel">
+        <div class="control-group">
+          <div class="control-group-head">
+            <div>
+              <div class="control-group-title">Underlying &amp; |Delta| Slice</div>
+              <div class="control-group-sub">
+                Choose an underlying S and a |Δ| level at a <strong>reference DTE</strong>. We solve for the strike K
+                such that the option has that |Δ| at that maturity, then keep K fixed for all DTE in the chart.
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <label for="S">Underlying S</label>
+            <div class="slider-wrap">
+              <input id="S" type="range" />
+              <div class="value-row">
+                <span id="S-min-label"></span>
+                <span class="value" id="S-value"></span>
+                <span id="S-max-label"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="minmax-row">
+            <div class="inline-input">
+              <label>S min</label>
+              <input id="S-min" type="number" />
+            </div>
+            <div class="inline-input">
+              <label>S max</label>
+              <input id="S-max" type="number" />
+            </div>
+          </div>
+
+          <div class="row" style="margin-top:0.4rem;">
+            <label for="deltaAbs">|Delta| at reference DTE</label>
+            <div class="slider-wrap">
+              <input id="deltaAbs" type="range" min="0.05" max="0.95" step="0.01" />
+              <div class="value-row">
+                <span>0.05</span>
+                <span class="value" id="deltaAbs-value"></span>
+                <span>0.95</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <label for="refDTE">Reference DTE (days)</label>
+            <div class="slider-wrap">
+              <input id="refDTE" type="range" />
+              <div class="value-row">
+                <span id="refDTE-min-label"></span>
+                <span class="value" id="refDTE-value"></span>
+                <span id="refDTEMaxLabel"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="inline-inputs" style="margin-top:0.35rem;">
+            <div class="inline-input">
+              <label>K from |Δ| @ reference DTE (call)</label>
+              <input id="K-call-display" type="number" disabled />
+            </div>
+            <div class="inline-input">
+              <label>K from |Δ| @ reference DTE (put)</label>
+              <input id="K-put-display" type="number" disabled />
+            </div>
+          </div>
+
+          <div class="small-note">
+            “Reference DTE” is the maturity where you define your |Δ| slice (e.g. 30 days → “40Δ at 30DTE”).  
+            We compute K at that DTE and then keep <strong>that same K</strong> when plotting θ or Δ vs DTE.
+          </div>
+        </div>
+
+        <div class="control-group">
+          <div class="control-group-head">
+            <div>
+              <div class="control-group-title">Market Inputs &amp; Max DTE</div>
+              <div class="control-group-sub">
+                Volatility, rate, dividend yield, and chart horizon.
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <label for="sigma">Vol σ</label>
+            <div class="slider-wrap">
+              <input id="sigma" type="range" min="0.05" max="1.0" step="0.005" />
+              <div class="value-row">
+                <span>5%</span>
+                <span class="value" id="sigma-value"></span>
+                <span>100%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <label for="r">Rate r</label>
+            <div class="slider-wrap">
+              <input id="r" type="range" min="-0.05" max="0.15" step="0.005" />
+              <div class="value-row">
+                <span>-5%</span>
+                <span class="value" id="r-value"></span>
+                <span>15%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <label for="q">Div q</label>
+            <div class="slider-wrap">
+              <input id="q" type="range" min="0" max="0.15" step="0.0025" />
+              <div class="value-row">
+                <span>0%</span>
+                <span class="value" id="q-value"></span>
+                <span>15%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <label for="maxDTE">Max DTE (chart)</label>
+            <div class="slider-wrap">
+              <input id="maxDTE" type="range" />
+              <div class="value-row">
+                <span id="maxDTE-min-label"></span>
+                <span class="value" id="maxDTE-value"></span>
+                <span id="maxDTE-max-label"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="minmax-row">
+            <div class="inline-input">
+              <label>Max DTE min</label>
+              <input id="maxDTE-min" type="number" />
+            </div>
+            <div class="inline-input">
+              <label>Max DTE max</label>
+              <input id="maxDTE-max" type="number" />
+            </div>
+          </div>
+
+          <div class="small-note">
+            X‑axis shows the option’s own <strong>DTE (days to expiration)</strong>, from the chosen max DTE on the left
+            down to 0 on the right.
+          </div>
+        </div>
+
+        <div class="control-group">
+          <div class="control-group-head">
+            <div>
+              <div class="control-group-title">Probe DTE &amp; Theta Stats</div>
+              <div class="control-group-sub">
+                Probe line always within the chart: 0 ≤ probe DTE ≤ max DTE.
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <label for="probeDTE">Probe DTE (days)</label>
+            <div class="slider-wrap">
+              <input id="probeDTE" type="range" />
+              <div class="value-row">
+                <span id="probeDTE-min-label"></span>
+                <span class="value" id="probeDTE-value"></span>
+                <span id="probeDTE-max-label"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="stat-line">
+            <span>Call θ / day @ probe DTE</span>
+            <span class="stat-value" id="theta-probe-call"></span>
+          </div>
+          <div class="stat-line">
+            <span>Put θ / day @ probe DTE</span>
+            <span class="stat-value" id="theta-probe-put"></span>
+          </div>
+          <div class="stat-line">
+            <span>Call θ / day @ ATM (K = S)</span>
+            <span class="stat-value" id="theta-atm-call"></span>
+          </div>
+          <div class="stat-line">
+            <span>Put θ / day @ ATM (K = S)</span>
+            <span class="stat-value" id="theta-atm-put"></span>
+          </div>
+
+          <div class="small-note">
+            All values are per 1 underlying unit; short positions flip the sign.
+          </div>
+        </div>
+      </section>
+
+      <!-- Chart -->
+      <section class="panel chart-panel">
+        <div class="panel-title">
+          <span id="chart-title-text">Theta per Day vs Days‑to‑Expiration</span>
+          <div class="view-toggle">
+            <button id="view-theta" class="active">Theta</button>
+            <button id="view-delta">Delta</button>
+          </div>
+        </div>
+        <div class="chart-wrapper">
+          <canvas id="thetaChart"></canvas>
+        </div>
+        <div class="hint" id="hint-text">
+          <div>
+            |Δ| and reference DTE define a strike K (e.g. “40Δ at 30DTE”). We then hold that K fixed and plot how
+            θ or Δ evolves as the option’s own DTE moves from max DTE → 0.
+          </div>
+          <div class="legend">
+            <span class="legend-item">
+              <span class="legend-color legend-call"></span> Call
+            </span>
+            <span class="legend-item">
+              <span class="legend-color legend-put"></span> Put
+            </span>
+            <span class="legend-item">
+              <span class="legend-zero"></span> Zero line
+            </span>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    // ---- Normal helpers ----
+    function erf(x) {
+      const sign = x < 0 ? -1 : 1;
+      x = Math.abs(x);
+      const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741;
+      const a4 = -1.453152027, a5 = 1.061405429, p = 0.3275911;
+      const t = 1.0 / (1.0 + p * x);
+      const y =
+        1.0 -
+        (((((a5 * t + a4) * t + a3) * t + a2) * t + a1) *
+          t *
+          Math.exp(-x * x));
+      return sign * y;
+    }
+    function cdfNorm(x) { return 0.5 * (1 + erf(x / Math.SQRT2)); }
+    function pdfNorm(x) { return (1 / Math.sqrt(2 * Math.PI)) * Math.exp(-0.5 * x * x); }
+
+    function invNorm(p) {
+      if (p <= 0 || p >= 1) return NaN;
+      const a1 = -3.969683028665376e1, a2 = 2.209460984245205e2;
+      const a3 = -2.759285104469687e2, a4 = 1.38357751867269e2;
+      const a5 = -3.066479806614716e1, a6 = 2.506628277459239;
+      const b1 = -5.447609879822406e1, b2 = 1.615858368580409e2;
+      const b3 = -1.556989798598866e2, b4 = 6.680131188771972e1;
+      const b5 = -1.328068155288572e1;
+      const c1 = -7.784894002430293e-3, c2 = -3.223964580411365e-1;
+      const c3 = -2.400758277161838, c4 = -2.549732539343734;
+      const c5 = 4.374664141464968, c6 = 2.938163982698783;
+      const d1 = 7.784695709041462e-3, d2 = 3.224671290700398e-1;
+      const d3 = 2.445134137142996, d4 = 3.754408661907416;
+      const plow = 0.02425, phigh = 1 - plow;
+      let q, r, x;
+      if (p < plow) {
+        q = Math.sqrt(-2 * Math.log(p));
+        x = (((((c1*q+c2)*q+c3)*q+c4)*q+c5)*q+c6) /
+            ((((d1*q+d2)*q+d3)*q+d4)*q+1);
+      } else if (phigh < p) {
+        q = Math.sqrt(-2 * Math.log(1-p));
+        x = -(((((c1*q+c2)*q+c3)*q+c4)*q+c5)*q+c6) /
+             ((((d1*q+d2)*q+d3)*q+d4)*q+1);
+      } else {
+        q = p-0.5; r = q*q;
+        x = (((((a1*r+a2)*r+a3)*r+a4)*r+a5)*r+a6)*q /
+            (((((b1*r+b2)*r+b3)*r+b4)*r+b5)*r+1);
+      }
+      const e = 0.5*(1+erf(x/Math.SQRT2))-p;
+      const u = e*Math.sqrt(2*Math.PI)*Math.exp(x*x/2);
+      x = x - u/(1+(x*u)/2);
+      return x;
+    }
+
+    function thetaPerDay(S, K, r, q, sigma, T, isCall) {
+      if (T <= 0 || sigma <= 0 || S <= 0 || K <= 0 || !isFinite(K)) return 0;
+      const sqrtT = Math.sqrt(T);
+      const lnSK = Math.log(S/K);
+      const d1 = (lnSK + (r - q + 0.5*sigma*sigma)*T) / (sigma*sqrtT);
+      const d2 = d1 - sigma*sqrtT;
+      const Nd1 = cdfNorm(isCall ? d1 : -d1);
+      const Nd2 = cdfNorm(isCall ? d2 : -d2);
+      const pdfd1 = pdfNorm(d1);
+      let thetaAnn;
+      if (isCall) {
+        thetaAnn = -(S*Math.exp(-q*T)*pdfd1*sigma)/(2*sqrtT)
+                   - r*K*Math.exp(-r*T)*Nd2
+                   + q*S*Math.exp(-q*T)*Nd1;
+      } else {
+        thetaAnn = -(S*Math.exp(-q*T)*pdfd1*sigma)/(2*sqrtT)
+                   + r*K*Math.exp(-r*T)*(1-Nd2)
+                   - q*S*Math.exp(-q*T)*(1-Nd1);
+      }
+      return thetaAnn / 365.0;
+    }
+
+    function deltaBS(S, K, r, q, sigma, T, isCall) {
+      if (T <= 0 || sigma <= 0 || S <= 0 || K <= 0) return 0;
+      const sqrtT = Math.sqrt(T);
+      const lnSK = Math.log(S/K);
+      const d1 = (lnSK + (r - q + 0.5*sigma*sigma)*T) / (sigma*sqrtT);
+      if (isCall) return Math.exp(-q*T) * cdfNorm(d1);
+      return -Math.exp(-q*T) * cdfNorm(-d1);
+    }
+
+    // strike from |Δ| at a given T
+    function strikeFromDeltaCall(S, T, r, q, sigma, deltaCall) {
+      const Nd1 = deltaCall * Math.exp(q*T);
+      if (Nd1 <= 0 || Nd1 >= 1) return NaN;
+      const d1 = invNorm(Nd1);
+      const lnSK = d1*sigma*Math.sqrt(T) - (r - q + 0.5*sigma*sigma)*T;
+      return S / Math.exp(lnSK);
+    }
+    function strikeFromDeltaPut(S, T, r, q, sigma, deltaPut) {
+      const Nd1neg = -deltaPut * Math.exp(q*T);
+      if (Nd1neg <= 0 || Nd1neg >= 1) return NaN;
+      const d1neg = invNorm(Nd1neg);
+      const d1 = -d1neg;
+      const lnSK = d1*sigma*Math.sqrt(T) - (r - q + 0.5*sigma*sigma)*T;
+      return S / Math.exp(lnSK);
+    }
+
+    // ---- Canvas ----
+    const canvas = document.getElementById("thetaChart");
+    const ctx = canvas.getContext("2d");
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    window.addEventListener("resize", () => { resizeCanvas(); draw(); });
+    resizeCanvas();
+
+    // ---- State ----
+    const state = {
+      S: 100,
+      sigma: 0.25,
+      r: 0.05,
+      q: 0.00,
+      deltaAbs: 0.40,
+      refDTE: 30,
+      maxDTE: 30,
+      probeDTE: 15,
+      Kcall: NaN,
+      Kput: NaN,
+      view: "theta",
+      // dynamic slider bounds
+      Smin: 10,
+      Smax: 500,
+      maxDTEMin: 7,
+      maxDTEMax: 365,
+      probeDTEMin: 0,
+      refDTEMin: 1,
+      refDTEMax: 365,
+    };
+
+    // ---- DOM ----
+    const SInput = document.getElementById("S");
+    const sigmaInput = document.getElementById("sigma");
+    const rInput = document.getElementById("r");
+    const qInput = document.getElementById("q");
+    const deltaAbsInput = document.getElementById("deltaAbs");
+    const refDTEInput = document.getElementById("refDTE");
+    const maxDTEInput = document.getElementById("maxDTE");
+    const probeDTEInput = document.getElementById("probeDTE");
+
+    const SValue = document.getElementById("S-value");
+    const SMinLabel = document.getElementById("S-min-label");
+    const SMaxLabel = document.getElementById("S-max-label");
+    const refDTEValue = document.getElementById("refDTE-value");
+    const refDTEMinLabel = document.getElementById("refDTE-min-label");
+    const refDTEMaxLabel = document.getElementById("refDTEMaxLabel");
+
+    const sigmaValue = document.getElementById("sigma-value");
+    const rValue = document.getElementById("r-value");
+    const qValue = document.getElementById("q-value");
+    const deltaAbsValue = document.getElementById("deltaAbs-value");
+    const maxDTEValue = document.getElementById("maxDTE-value");
+    const maxDTEMinLabel = document.getElementById("maxDTE-min-label");
+    const maxDTEMaxLabel = document.getElementById("maxDTE-max-label");
+    const probeDTEValue = document.getElementById("probeDTE-value");
+    const probeDTEMinLabel = document.getElementById("probeDTE-min-label");
+    const probeDTEMaxLabel = document.getElementById("probeDTE-max-label");
+
+    const SMinInput = document.getElementById("S-min");
+    const SMaxInput = document.getElementById("S-max");
+    const maxDTEMinInput = document.getElementById("maxDTE-min");
+    const maxDTEMaxInput = document.getElementById("maxDTE-max");
+
+    const KCallDisplay = document.getElementById("K-call-display");
+    const KPutDisplay  = document.getElementById("K-put-display");
+
+    const thetaProbeCallNode = document.getElementById("theta-probe-call");
+    const thetaProbePutNode  = document.getElementById("theta-probe-put");
+    const thetaAtmCallNode   = document.getElementById("theta-atm-call");
+    const thetaAtmPutNode    = document.getElementById("theta-atm-put");
+
+    const viewThetaBtn = document.getElementById("view-theta");
+    const viewDeltaBtn = document.getElementById("view-delta");
+    const chartTitleText = document.getElementById("chart-title-text");
+    const hintText = document.getElementById("hint-text");
+
+    function formatTheta(x) {
+      if (!isFinite(x)) return "—";
+      const sign = x > 0 ? "+" : "";
+      const abs = Math.abs(x);
+      if (abs >= 1) return sign + abs.toFixed(2);
+      if (abs >= 0.01) return sign + abs.toFixed(3);
+      return sign + abs.toExponential(2);
+    }
+
+    function recomputeStrikeFromDelta() {
+      const Tref = state.refDTE / 365.0;
+      const deltaC = state.deltaAbs;
+      const deltaP = -state.deltaAbs;
+      const Kc = strikeFromDeltaCall(state.S, Tref, state.r, state.q, state.sigma, deltaC);
+      const Kp = strikeFromDeltaPut(state.S, Tref, state.r, state.q, state.sigma, deltaP);
+      state.Kcall = Kc;
+      state.Kput = Kp;
+      KCallDisplay.value = isFinite(Kc) ? Kc.toFixed(4) : "";
+      KPutDisplay.value  = isFinite(Kp) ? Kp.toFixed(4) : "";
+    }
+
+    function syncProbeWithMaxDTE() {
+      // Probe min is 0 by design
+      state.probeDTEMin = 0;
+      const maxDTE = Math.max(1, state.maxDTE);
+      // Probe max is always current maxDTE
+      const probeMax = maxDTE;
+      // Clamp probeDTE to [0, maxDTE]
+      state.probeDTE = Math.min(Math.max(state.probeDTE, 0), probeMax);
+      probeDTEInput.min = state.probeDTEMin;
+      probeDTEInput.max = probeMax;
+      probeDTEMinLabel.textContent = "0";
+      probeDTEMaxLabel.textContent = `${probeMax}`;
+    }
+
+    function updateSliderRanges() {
+      // Underlying S
+      SInput.min = state.Smin;
+      SInput.max = state.Smax;
+      SMinLabel.textContent = `$${Number(state.Smin).toFixed(0)}`;
+      SMaxLabel.textContent = `$${Number(state.Smax).toFixed(0)}`;
+
+      // Max DTE
+      maxDTEInput.min = state.maxDTEMin;
+      maxDTEInput.max = state.maxDTEMax;
+      maxDTEMinLabel.textContent = `${state.maxDTEMin}`;
+      maxDTEMaxLabel.textContent = `${state.maxDTEMax}`;
+
+      // Reference DTE
+      refDTEInput.min = state.refDTEMin;
+      refDTEInput.max = state.refDTEMax;
+      refDTEMinLabel.textContent = `${state.refDTEMin}`;
+      refDTEMaxLabel.textContent = `${state.refDTEMax}`;
+
+      // Probe DTE depends on current maxDTE
+      syncProbeWithMaxDTE();
+    }
+
+    function updateLabels() {
+      updateSliderRanges();
+
+      SInput.value = Math.min(Math.max(state.S, state.Smin), state.Smax);
+      maxDTEInput.value = Math.min(Math.max(state.maxDTE, state.maxDTEMin), state.maxDTEMax);
+      probeDTEInput.value = state.probeDTE;
+      refDTEInput.value = Math.min(Math.max(state.refDTE, state.refDTEMin), state.refDTEMax);
+
+      SValue.textContent = `$${Number(state.S).toFixed(2)}`;
+      sigmaValue.textContent = `${(state.sigma*100).toFixed(1)}%`;
+      rValue.textContent = `${(state.r*100).toFixed(1)}%`;
+      qValue.textContent = `${(state.q*100).toFixed(1)}%`;
+      deltaAbsValue.textContent = state.deltaAbs.toFixed(2);
+      refDTEValue.textContent = `${state.refDTE} days`;
+      maxDTEValue.textContent = `${state.maxDTE} days`;
+      probeDTEValue.textContent = `${state.probeDTE} days`;
+
+      SMinInput.value = state.Smin;
+      SMaxInput.value = state.Smax;
+      maxDTEMinInput.value = state.maxDTEMin;
+      maxDTEMaxInput.value = state.maxDTEMax;
+
+      recomputeStrikeFromDelta();
+    }
+
+    function updateStats() {
+      const Tprobe = Math.max(state.probeDTE, 0.001) / 365.0;
+      const thetaProbeCall = thetaPerDay(state.S, state.Kcall, state.r, state.q, state.sigma, Tprobe, true);
+      const thetaProbePut  = thetaPerDay(state.S, state.Kput,  state.r, state.q, state.sigma, Tprobe, false);
+      const thetaAtmCall   = thetaPerDay(state.S, state.S,     state.r, state.q, state.sigma, Tprobe, true);
+      const thetaAtmPut    = thetaPerDay(state.S, state.S,     state.r, state.q, state.sigma, Tprobe, false);
+
+      thetaProbeCallNode.textContent = formatTheta(thetaProbeCall) + " / day";
+      thetaProbePutNode.textContent  = formatTheta(thetaProbePut)  + " / day";
+      thetaAtmCallNode.textContent   = formatTheta(thetaAtmCall)   + " / day";
+      thetaAtmPutNode.textContent    = formatTheta(thetaAtmPut)    + " / day";
+
+      thetaProbeCallNode.className = "stat-value " + (thetaProbeCall < 0 ? "stat-bear" : "stat-bull");
+      thetaProbePutNode.className  = "stat-value " + (thetaProbePut  < 0 ? "stat-bear" : "stat-bull");
+      thetaAtmCallNode.className   = "stat-value " + (thetaAtmCall   < 0 ? "stat-bear" : "stat-bull");
+      thetaAtmPutNode.className    = "stat-value " + (thetaAtmPut    < 0 ? "stat-bear" : "stat-bull");
+    }
+
+    function computeCurvesThetaAndDelta() {
+      const callTheta = [], putTheta = [];
+      const callDelta = [], putDelta = [];
+      const steps = 200;
+      const maxDTE = Math.max(1, state.maxDTE);
+      for (let i = 0; i <= steps; i++) {
+        const x = (i/steps)*maxDTE;
+        const dte = maxDTE - x;
+        const T = Math.max(dte, 0.001)/365.0;
+        const tC = thetaPerDay(state.S, state.Kcall, state.r, state.q, state.sigma, T, true);
+        const tP = thetaPerDay(state.S, state.Kput,  state.r, state.q, state.sigma, T, false);
+        const dC = deltaBS(state.S, state.Kcall, state.r, state.q, state.sigma, T, true);
+        const dP = deltaBS(state.S, state.Kput,  state.r, state.q, state.sigma, T, false);
+        callTheta.push({ dte, val: tC });
+        putTheta .push({ dte, val: tP });
+        callDelta.push({ dte, val: dC });
+        putDelta .push({ dte, val: dP });
+      }
+      return { callTheta, putTheta, callDelta, putDelta };
+    }
+
+  function draw() {
+      const canvas = document.getElementById("thetaChart");
+      const ctx = canvas.getContext("2d");
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      const w = rect.width, h = rect.height;
+      ctx.clearRect(0, 0, w, h);
+
+      // Space inside canvas reserved for the plot.
+      const padLeft = 52, padRight = 12, padTop = 16, padBottom = 40;
+      const plotW = w - padLeft - padRight;
+      const plotH = h - padTop - padBottom;
+      if (plotW <= 0 || plotH <= 0) return;
+
+      const data = computeCurvesThetaAndDelta();
+      const minX = 0, maxX = state.maxDTE;
+
+      let minY = 0, maxY = 0;
+      if (state.view === "theta") {
+        [...data.callTheta, ...data.putTheta].forEach(p => {
+          if (p.val < minY) minY = p.val;
+          if (p.val > maxY) maxY = p.val;
+        });
+      } else {
+        [...data.callDelta, ...data.putDelta].forEach(p => {
+          if (p.val < minY) minY = p.val;
+          if (p.val > maxY) maxY = p.val;
+        });
+        minY = Math.min(minY, -1);
+        maxY = Math.max(maxY, 1);
+      }
+      if (minY === maxY) { minY -= 0.1; maxY += 0.1; }
+      const yPad = Math.max((maxY-minY)*0.05, 0.001);
+      minY -= yPad; maxY += yPad;
+
+      const xToPx = dte => padLeft + ((maxX - dte)/(maxX - minX || 1))*plotW;
+      const yToPx = y   => padTop + (1 - (y-minY)/(maxY-minY || 1))*plotH;
+
+      // Background
+      const grad = ctx.createLinearGradient(0, padTop, 0, padTop + plotH);
+      grad.addColorStop(0, "rgba(18,24,46,0.95)");
+      grad.addColorStop(1, "rgba(8,12,30,0.95)");
+      ctx.fillStyle = grad;
+      ctx.fillRect(padLeft, padTop, plotW, plotH);
+
+      ctx.save();
+      ctx.strokeStyle = "rgba(255,255,255,0.04)";
+      ctx.lineWidth = 1;
+      ctx.font = "10px system-ui, sans-serif";
+      ctx.fillStyle = "#b4bddb";
+
+      // X ticks: label DTE values *inside* the plot, right under the bottom grid line.
+      const xTicks = 6;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      const labelY = padTop + plotH - 14; // inside the chart, above bottom edge
+      for (let i = 0; i <= xTicks; i++) {
+        const frac = i / xTicks;
+        const dte = maxX - frac * (maxX - minX); // maxX -> 0
+        const px = xToPx(dte);
+        ctx.beginPath(); ctx.moveTo(px,padTop); ctx.lineTo(px,padTop+plotH); ctx.stroke();
+        const label = Math.round(dte);
+        ctx.fillText(String(label), px, labelY);
+      }
+
+      // Y ticks
+      const yTicks = 5;
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+      for (let i = 0; i <= yTicks; i++) {
+        const t = i/yTicks;
+        const yVal = minY + t*(maxY-minY);
+        const py = yToPx(yVal);
+        ctx.beginPath(); ctx.moveTo(padLeft,py); ctx.lineTo(padLeft+plotW,py); ctx.stroke();
+        ctx.fillText(
+          state.view === "theta" ? yVal.toFixed(3) : yVal.toFixed(2),
+          padLeft-6, py
+        );
+      }
+
+      // Zero line
+      if (minY < 0 && maxY > 0) {
+        const py0 = yToPx(0);
+        ctx.strokeStyle = "rgba(220,220,230,0.55)";
+        ctx.lineWidth = 1.1;
+        ctx.setLineDash([4,3]);
+        ctx.beginPath(); ctx.moveTo(padLeft,py0); ctx.lineTo(padLeft+plotW,py0); ctx.stroke();
+        ctx.setLineDash([]);
+      }
+      ctx.restore();
+
+      // Axis label (static)
+      ctx.save();
+      ctx.font = "11px system-ui, sans-serif";
+      ctx.fillStyle = "#e3e6ff";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "bottom";
+      ctx.fillText("DTE of the option (days)", padLeft+plotW/2, padTop + plotH + 20);
+      ctx.save();
+      ctx.translate(10, padTop+plotH/2);
+      ctx.rotate(-Math.PI/2);
+      ctx.textAlign = "center"; ctx.textBaseline = "top";
+      ctx.fillText(state.view === "theta" ? "Theta per Day" : "Delta", 0, 0);
+      ctx.restore();
+      ctx.restore();
+
+      const callData = state.view === "theta" ? data.callTheta : data.callDelta;
+      const putData  = state.view === "theta" ? data.putTheta  : data.putDelta;
+
+      // Call curve
+      ctx.save();
+      ctx.strokeStyle = "rgba(46,204,113,0.95)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      callData.forEach((p,i)=>{ const x=xToPx(p.dte), y=yToPx(p.val); if(i===0)ctx.moveTo(x,y); else ctx.lineTo(x,y); });
+      ctx.stroke();
+      ctx.restore();
+
+      // Put curve
+      ctx.save();
+      ctx.strokeStyle = "rgba(231,76,60,0.95)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      putData.forEach((p,i)=>{ const x=xToPx(p.dte), y=yToPx(p.val); if(i===0)ctx.moveTo(x,y); else ctx.lineTo(x,y); });
+      ctx.stroke();
+      ctx.restore();
+
+      // Probe vertical line
+      const probeX = xToPx(state.probeDTE);
+      ctx.save();
+      ctx.strokeStyle = "rgba(255,255,255,0.4)";
+      ctx.setLineDash([3,3]);
+      ctx.beginPath(); ctx.moveTo(probeX,padTop); ctx.lineTo(probeX,padTop+plotH); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+
+
+    function attachSlider(input, key) {
+      const handler = () => {
+        let v = parseFloat(input.value);
+        if (!isFinite(v)) return;
+        if (key === "deltaAbs") v = Math.max(0.01, Math.min(0.99, v));
+        if (key === "probeDTE") {
+          // Just clamp within its min/max (already synced to maxDTE)
+          const min = parseFloat(input.min);
+          const max = parseFloat(input.max);
+          v = Math.min(Math.max(v, min), max);
+        }
+        state[key] = v;
+        if (key === "maxDTE") {
+          // changing chart horizon also changes probe max bound
+          syncProbeWithMaxDTE();
+        }
+        updateLabels();
+        updateStats();
+        draw();
+      };
+      input.addEventListener("input", handler);
+      input.addEventListener("change", handler);
+    }
+
+    function attachNumberInput(input, key, isMin) {
+      const handler = () => {
+        let v = parseFloat(input.value);
+        if (!isFinite(v)) return;
+        if (key === "S") {
+          if (isMin) {
+            state.Smin = Math.min(v, state.Smax - 1e-6);
+            if (state.S < state.Smin) state.S = state.Smin;
+          } else {
+            state.Smax = Math.max(v, state.Smin + 1e-6);
+            if (state.S > state.Smax) state.S = state.Smax;
+          }
+        } else if (key === "maxDTE") {
+          if (isMin) {
+            state.maxDTEMin = Math.max(1, Math.min(v, state.maxDTEMax - 1));
+            if (state.maxDTE < state.maxDTEMin) state.maxDTE = state.maxDTEMin;
+          } else {
+            state.maxDTEMax = Math.max(state.maxDTEMin + 1, v);
+            if (state.maxDTE > state.maxDTEMax) state.maxDTE = state.maxDTEMax;
+          }
+        }
+        syncProbeWithMaxDTE();
+        updateLabels();
+        updateStats();
+        draw();
+      };
+      input.addEventListener("change", handler);
+    }
+
+    function updateViewButtons() {
+      if (state.view === "theta") {
+        viewThetaBtn.classList.add("active");
+        viewDeltaBtn.classList.remove("active");
+        chartTitleText.textContent = "Theta per Day vs Days‑to‑Expiration";
+        hintText.firstElementChild.textContent =
+          "|Δ| and reference DTE define a strike K (e.g. “40Δ at 30DTE”). We then hold that K fixed and plot theta per day vs the option’s own DTE.";
+      } else {
+        viewDeltaBtn.classList.add("active");
+        viewThetaBtn.classList.remove("active");
+        chartTitleText.textContent = "Delta vs Days‑to‑Expiration";
+        hintText.firstElementChild.textContent =
+          "|Δ| and reference DTE define a strike K. This view shows how call/put delta evolve over DTE for that same fixed strike.";
+      }
+    }
+
+    function init() {
+      SInput.step = 1;
+      deltaAbsInput.step = 0.01;
+      refDTEInput.step = 1;
+      maxDTEInput.step = 1;
+      probeDTEInput.step = 1;
+
+      updateSliderRanges();
+
+      SInput.value = state.S;
+      sigmaInput.value = state.sigma;
+      rInput.value = state.r;
+      qInput.value = state.q;
+      deltaAbsInput.value = state.deltaAbs;
+      refDTEInput.value = state.refDTE;
+      maxDTEInput.value = state.maxDTE;
+      probeDTEInput.value = state.probeDTE;
+
+      updateLabels();
+      updateStats();
+      updateViewButtons();
+      draw();
+
+      attachSlider(SInput, "S");
+      attachSlider(sigmaInput, "sigma");
+      attachSlider(rInput, "r");
+      attachSlider(qInput, "q");
+      attachSlider(deltaAbsInput, "deltaAbs");
+      attachSlider(refDTEInput, "refDTE");
+      attachSlider(maxDTEInput, "maxDTE");
+      attachSlider(probeDTEInput, "probeDTE");
+
+      attachNumberInput(SMinInput, "S", true);
+      attachNumberInput(SMaxInput, "S", false);
+      attachNumberInput(maxDTEMinInput, "maxDTE", true);
+      attachNumberInput(maxDTEMaxInput, "maxDTE", false);
+
+      viewThetaBtn.addEventListener("click", () => {
+        state.view = "theta";
+        updateViewButtons();
+        draw();
+      });
+      viewDeltaBtn.addEventListener("click", () => {
+        state.view = "delta";
+        updateViewButtons();
+        draw();
+      });
+    }
+
+    init();
+  </script>
+  <a class="github-fork-ribbon right-bottom fixed" href="http://https://github.com/kupietools/big-diffr" data-ribbon="Fork me on GitHub" title="Fork me on GitHub">Fork me on GitHub</a>
+
+</body>
+</html>
