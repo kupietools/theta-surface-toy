@@ -3,7 +3,7 @@
 <!-- vibe coded, not responsible for errors because I haven't looked yet. Look, I will, I just wanted to whip something up quickly. I'll come back and double check. Michael Kupietz https://michaelkupietz.com -->
 <head>
   <meta charset="UTF-8" />
-  <title>Theta & Delta vs DTE – Strike from |Delta| at Reference DTE (BSM)</title>
+  <title>Theta & Delta vs DTE – Changes in theta and delta over time for an option at delta |∆|</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-fork-ribbon-css/0.2.3/gh-fork-ribbon.min.css" />
   <style>
@@ -64,8 +64,9 @@
       border: 1px solid var(--border);
       overflow: hidden;
       background: rgba(6,10,25,0.9);
-      font-size: 0.7rem;
+      font-size: 1rem; /* 0.7rem; */
     }
+  
     .view-toggle button {
       border: none;
       padding: 0.15rem 0.6rem;
@@ -187,7 +188,7 @@
 <body>
   <div class="app">
     <header>
-      <h1>Black‑Scholes Theta &amp; Delta vs DTE</h1>
+      <h1>Black‑Scholes Theta &amp; Delta vs DTE  – Changes in theta and delta over time for an option at delta |∆|</h1>
       <div class="subtitle">
         |Δ| and a <strong>reference DTE</strong> define the strike; that strike is then held fixed as time passes. Choose Theta or Delta graphs at upper right of chart.
       </div>
@@ -389,15 +390,19 @@
             All values are per 1 underlying unit; short positions flip the sign.
           </div>
         </div>
-      </section>
+      <hr>
+          <div class="control-group">
+          <div class="control-group-title">
+          Notes:</div><div class="control-group-sub"> It may be observed that for some options, close to expiration, theta on long puts becomes positive. This is due to the different effect of interest rate on puts and calls. See <a href="https://quant.stackexchange.com/questions/68153/what-is-the-intuition-behind-a-positive-theta-for-european-long-puts" target="_blank">https://quant.stackexchange.com/questions/68153/what-is-the-intuition-behind-a-positive-theta-for-european-long-puts</a>.
+          </div></div>  </section>
 
       <!-- Chart -->
       <section class="panel chart-panel">
         <div class="panel-title">
           <span id="chart-title-text">Theta per Day vs Days‑to‑Expiration</span>
-          <div class="view-toggle">
-            <button id="view-theta" class="active">Theta</button>
-            <button id="view-delta">Delta</button>
+     <div class="view-toggle">
+            <button id="view-theta" class="active">Show Theta per Day</button>
+            <button id="view-delta">Show Delta</button>
           </div>
         </div>
         <div class="chart-wrapper">
