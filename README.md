@@ -12,6 +12,9 @@ The app is useful for:
 - Exploring call vs. put symmetry in Black–Scholes.
 - Getting intuition for how a specific “Delta slice” behaves as an option ages.
 
+<img width="1280" height="818" alt="Screen Shot 2025-11-23 at 8 40 50 PM" src="https://github.com/user-attachments/assets/5fa87b4a-7d7d-4b30-a4e9-749646c2a84d" />
+
+
 ---
 
 ## Live Demo
